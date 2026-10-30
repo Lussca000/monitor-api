@@ -1,21 +1,16 @@
 import sys
 from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-
-import sys
-from pathlib import Path
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-# Adiciona a raiz do projeto ao Python Path
+# Adiciona a raiz do projeto ao Python Path.
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from core.config import settings
-from db.database import Base
-import db.models  # noqa: F401 — registra os modelos no metadata do Alembic
+from app.core.config import settings
+from app.db.database import Base
+import app.db.models  # noqa: F401 -- registra os modelos no metadata do Alembic
 
 
 config = context.config
