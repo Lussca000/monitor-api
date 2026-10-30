@@ -33,3 +33,35 @@ class MonitorResponse(MonitorBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class MonitorCheckResult(BaseModel):
+    status_code: int | None
+    response_time_ms: float
+    success: bool
+    error_type: str | None = None
+    error_message: str | None = None
+
+
+class MonitorCheckResponse(MonitorCheckResult):
+    id: int
+    monitor_id: int
+    checked_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MonitorStatsResponse(BaseModel):
+    monitor_id: int
+    total_checks: int
+    successful_checks: int
+    failed_checks: int
+    uptime_percentage: float
+    average_response_time_ms: float | None
+
+
+class MonitorCheckListResponse(BaseModel):
+    items: list[MonitorCheckResponse]
+    page: int
+    page_size: int
+    total: int

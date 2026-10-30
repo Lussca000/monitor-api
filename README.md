@@ -10,6 +10,9 @@ incrementalmente com FastAPI, SQLAlchemy e Alembic.
 - banco de dados SQLite local;
 - migration inicial que cria a tabela `monitors`;
 - schemas Pydantic para criar, atualizar e serializar monitores.
+- verificação manual persistida com `POST /monitors/{id}/check`;
+- histórico paginado de verificações com `GET /monitors/{id}/checks?page=1&page_size=20`.
+- estatísticas de uptime e latência média com `GET /monitors/{id}/stats`.
 
 As rotas CRUD de monitores ainda serão implementadas.
 
