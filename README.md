@@ -37,6 +37,8 @@ alembic/               # migrations
 main.py                # aplicação FastAPI
 ```
 
+Consulte a lista completa de endpoints em [docs/api.md](docs/api.md).
+
 ## Configuração local
 
 Crie e ative o ambiente virtual:

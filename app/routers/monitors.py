@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
+from app.core.security import get_current_user
 from app.db.database import get_db
-from app.db.models import Monitor, MonitorCheck
+from app.db.models import Monitor, MonitorCheck, User
 from app.schemas.monitor import (
-    MonitorCheckResponse,
     MonitorCheckListResponse,
+    MonitorCheckResponse,
     MonitorCreate,
     MonitorResponse,
     MonitorStatsResponse,
@@ -18,25 +19,43 @@ router = APIRouter(prefix="/monitors", tags=["monitors"])
 
 
 @router.get("", response_model=list[MonitorResponse])
-def list_monitors(db: Session = Depends(get_db)) -> list[Monitor]:
-    return db.query(Monitor).order_by(Monitor.id).all()
+def list_monitors(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Monitor]:
+    """List all monitors for the current user."""
+    return (
+        db.query(Monitor)
+        .filter(Monitor.user_id == current_user.id)
+        .order_by(Monitor.id)
+        .all()
+    )
 
 
 @router.get("/{monitor_id}", response_model=MonitorResponse)
-def get_monitor(monitor_id: int, db: Session = Depends(get_db)) -> Monitor:
+def get_monitor(
+    monitor_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Monitor:
+    """Get a monitor by ID (must belong to current user)."""
     monitor = db.get(Monitor, monitor_id)
-    if monitor is None:
+    if monitor is None or monitor.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Monitor not found")
     return monitor
 
 
 @router.post("/{monitor_id}/check", response_model=MonitorCheckResponse)
 def run_monitor_check(
-    monitor_id: int, db: Session = Depends(get_db)
+    monitor_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> MonitorCheckResponse:
+    """Execute a manual check for a monitor."""
     monitor = db.get(Monitor, monitor_id)
-    if monitor is None:
+    if monitor is None or monitor.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Monitor not found")
+    
     result = check_monitor(monitor)
     monitor_check = MonitorCheck(
         monitor_id=monitor.id,
@@ -54,8 +73,11 @@ def list_monitor_checks(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> MonitorCheckListResponse:
-    if db.get(Monitor, monitor_id) is None:
+    """Get paginated check history for a monitor."""
+    monitor = db.get(Monitor, monitor_id)
+    if monitor is None or monitor.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Monitor not found")
 
     query = db.query(MonitorCheck).filter(MonitorCheck.monitor_id == monitor_id)
@@ -78,9 +100,13 @@ def list_monitor_checks(
 
 @router.get("/{monitor_id}/stats", response_model=MonitorStatsResponse)
 def get_monitor_stats(
-    monitor_id: int, db: Session = Depends(get_db)
+    monitor_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> MonitorStatsResponse:
-    if db.get(Monitor, monitor_id) is None:
+    """Get statistics for a monitor."""
+    monitor = db.get(Monitor, monitor_id)
+    if monitor is None or monitor.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Monitor not found")
 
     checks = (
@@ -114,9 +140,11 @@ def update_monitor(
     monitor_id: int,
     monitor_data: MonitorUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Monitor:
+    """Update a monitor (partial updates allowed)."""
     monitor = db.get(Monitor, monitor_id)
-    if monitor is None:
+    if monitor is None or monitor.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Monitor not found")
 
     for field, value in monitor_data.model_dump(exclude_unset=True).items():
@@ -128,9 +156,14 @@ def update_monitor(
 
 
 @router.delete("/{monitor_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_monitor(monitor_id: int, db: Session = Depends(get_db)) -> Response:
+def delete_monitor(
+    monitor_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """Delete a monitor."""
     monitor = db.get(Monitor, monitor_id)
-    if monitor is None:
+    if monitor is None or monitor.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Monitor not found")
 
     db.delete(monitor)
@@ -142,8 +175,13 @@ def delete_monitor(monitor_id: int, db: Session = Depends(get_db)) -> Response:
 def create_monitor(
     monitor_data: MonitorCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Monitor:
-    monitor = Monitor(**monitor_data.model_dump())
+    """Create a new monitor for the current user."""
+    monitor = Monitor(
+        user_id=current_user.id,
+        **monitor_data.model_dump()
+    )
     db.add(monitor)
     db.commit()
     db.refresh(monitor)

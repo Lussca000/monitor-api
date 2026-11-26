@@ -1,6 +1,26 @@
 from datetime import datetime
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+ALLOWED_HTTP_METHODS = {"DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"}
+
+
+def validate_monitor_url(url: str) -> str:
+    parsed_url = urlparse(url)
+    if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+        raise ValueError("URL must use the HTTP or HTTPS protocol")
+    return url
+
+
+def normalize_http_method(method: str) -> str:
+    normalized_method = method.upper()
+    if normalized_method not in ALLOWED_HTTP_METHODS:
+        raise ValueError(
+            f"Method must be one of: {', '.join(sorted(ALLOWED_HTTP_METHODS))}"
+        )
+    return normalized_method
 
 
 class MonitorBase(BaseModel):
@@ -11,6 +31,16 @@ class MonitorBase(BaseModel):
     timeout_seconds: int = Field(default=5, ge=1)
     is_active: bool = True
     expected_status_code: int = Field(default=200, ge=100, le=599)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        return validate_monitor_url(value)
+
+    @field_validator("method")
+    @classmethod
+    def validate_method(cls, value: str) -> str:
+        return normalize_http_method(value)
 
 
 class MonitorCreate(MonitorBase):
@@ -25,6 +55,16 @@ class MonitorUpdate(BaseModel):
     timeout_seconds: int | None = Field(default=None, ge=1)
     is_active: bool | None = None
     expected_status_code: int | None = Field(default=None, ge=100, le=599)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str | None) -> str | None:
+        return validate_monitor_url(value) if value is not None else value
+
+    @field_validator("method")
+    @classmethod
+    def validate_method(cls, value: str | None) -> str | None:
+        return normalize_http_method(value) if value is not None else value
 
 
 class MonitorResponse(MonitorBase):

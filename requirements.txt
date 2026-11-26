@@ -1,6 +1,12 @@
 fastapi[standard]
 sqlalchemy
 alembic
+apscheduler<4
 pydantic-settings
 httpx
+httpx2
 pytest
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+python-json-logger
