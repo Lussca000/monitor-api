@@ -8,6 +8,7 @@ from app.schemas.monitor import (
     MonitorCheckListResponse,
     MonitorCheckResponse,
     MonitorCreate,
+    MonitorListResponse,
     MonitorResponse,
     MonitorStatsResponse,
     MonitorUpdate,
@@ -18,18 +19,24 @@ from app.services.checker import check_monitor
 router = APIRouter(prefix="/monitors", tags=["monitors"])
 
 
-@router.get("", response_model=list[MonitorResponse])
+@router.get("", response_model=MonitorListResponse)
 def list_monitors(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[Monitor]:
-    """List all monitors for the current user."""
-    return (
-        db.query(Monitor)
-        .filter(Monitor.user_id == current_user.id)
+) -> MonitorListResponse:
+    """List monitors for the current user (paginated)."""
+    query = db.query(Monitor).filter(Monitor.user_id == current_user.id)
+    total = query.count()
+    monitors = (
+        query
         .order_by(Monitor.id)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
         .all()
     )
+    return MonitorListResponse(items=monitors, page=page, page_size=page_size, total=total)
 
 
 @router.get("/{monitor_id}", response_model=MonitorResponse)

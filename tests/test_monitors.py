@@ -112,7 +112,11 @@ def test_list_monitors(client: TestClient, auth_token: str) -> None:
     response = client.get("/monitors", headers=get_auth_headers(auth_token))
 
     assert response.status_code == 200
-    assert [monitor["name"] for monitor in response.json()] == ["API A", "API B"]
+    payload = response.json()
+    assert payload["page"] == 1
+    assert payload["page_size"] == 20
+    assert payload["total"] == 2
+    assert [monitor["name"] for monitor in payload["items"]] == ["API A", "API B"]
 
 
 def test_list_monitors_requires_auth(client: TestClient) -> None:
@@ -154,13 +158,13 @@ def test_list_monitors_only_returns_user_monitors(
     
     # List monitors as user1
     response = client.get("/monitors", headers=get_auth_headers(token1))
-    assert len(response.json()) == 1
-    assert response.json()[0]["name"] == "User1 Monitor"
+    assert response.json()["total"] == 1
+    assert response.json()["items"][0]["name"] == "User1 Monitor"
     
     # List monitors as user2
     response = client.get("/monitors", headers=get_auth_headers(token2))
-    assert len(response.json()) == 1
-    assert response.json()[0]["name"] == "User2 Monitor"
+    assert response.json()["total"] == 1
+    assert response.json()["items"][0]["name"] == "User2 Monitor"
 
 
 def test_get_monitor(client: TestClient, auth_token: str) -> None:

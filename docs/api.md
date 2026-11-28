@@ -35,22 +35,58 @@ Corpo:
   "interval_seconds": 60,
   "timeout_seconds": 5,
   "is_active": true,
-  "expected_status_code": 200
+  "expected_status_code": 200,
+  "webhook_url": "https://hooks.example.com/notify"
 }
 ```
 
-Os campos `method`, `interval_seconds`, `timeout_seconds`, `is_active` e
-`expected_status_code` possuem valores padrão. A URL deve usar `http` ou
-`https`. Métodos aceitos: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` e
-`OPTIONS`.
+Os campos `method`, `interval_seconds`, `timeout_seconds`, `is_active`,
+`expected_status_code` e `webhook_url` possuem valores padrão ou são opcionais.
+A URL e o `webhook_url` devem usar `http` ou `https`. Métodos aceitos: `GET`,
+`HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` e `OPTIONS`.
+
+Quando configurado, o `webhook_url` recebe um `POST` sempre que o estado do
+monitor muda (de saudável para falho ou vice-versa). Payload enviado:
+
+```json
+{
+  "event": "monitor.down",
+  "monitor_id": 1,
+  "monitor_name": "API principal",
+  "url": "https://example.com/health",
+  "checked_at": "2026-11-27T21:00:00",
+  "status_code": null,
+  "error_type": "TIMEOUT"
+}
+```
+
+Eventos possíveis: `monitor.down` e `monitor.recovered`.
 
 Resposta `201`: o monitor criado, incluindo `id`, `created_at` e `updated_at`.
 
 ### `GET /monitors`
 
-Lista todos os monitores em ordem crescente de ID.
+Lista os monitores do usuário autenticado em ordem crescente de ID.
 
-Resposta `200`: uma lista de monitores.
+Parâmetros de query:
+
+| Parâmetro | Padrão | Limites | Descrição |
+| --- | --- | --- | --- |
+| `page` | `1` | mínimo `1` | Página solicitada. |
+| `page_size` | `20` | de `1` a `100` | Itens por página. |
+
+Exemplo: `GET /monitors?page=1&page_size=20`
+
+Resposta `200`:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "page_size": 20,
+  "total": 0
+}
+```
 
 ### `GET /monitors/{monitor_id}`
 

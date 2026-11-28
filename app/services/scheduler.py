@@ -6,6 +6,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.db.database import SessionLocal
 from app.db.models import Monitor, MonitorCheck
+from app.services.alerting import resolve_alert_event, send_webhook
 from app.services.checker import check_monitor
 
 
@@ -60,7 +61,16 @@ def run_scheduled_checks() -> None:
             check_start = perf_counter()
             
             try:
+                # Query previous state before adding the new check
+                previous_success: bool | None = (
+                    db.query(MonitorCheck.success)
+                    .filter(MonitorCheck.monitor_id == monitor.id)
+                    .order_by(MonitorCheck.checked_at.desc())
+                    .scalar()
+                )
+
                 result = check_monitor(monitor)
+                check_time = datetime.now()
                 db.add(MonitorCheck(monitor_id=monitor.id, **result.model_dump()))
                 
                 checks_executed += 1
@@ -86,6 +96,10 @@ def run_scheduled_checks() -> None:
                         "error_type": result.error_type,
                     }
                 )
+
+                alert_event = resolve_alert_event(previous_success, result.success)
+                if alert_event:
+                    send_webhook(alert_event, monitor, result, check_time)
                 
             except Exception as e:
                 checks_executed += 1

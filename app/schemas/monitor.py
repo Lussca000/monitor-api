@@ -31,6 +31,7 @@ class MonitorBase(BaseModel):
     timeout_seconds: int = Field(default=5, ge=1)
     is_active: bool = True
     expected_status_code: int = Field(default=200, ge=100, le=599)
+    webhook_url: str | None = Field(default=None, max_length=2048)
 
     @field_validator("url")
     @classmethod
@@ -41,6 +42,11 @@ class MonitorBase(BaseModel):
     @classmethod
     def validate_method(cls, value: str) -> str:
         return normalize_http_method(value)
+
+    @field_validator("webhook_url")
+    @classmethod
+    def validate_webhook_url(cls, value: str | None) -> str | None:
+        return validate_monitor_url(value) if value is not None else value
 
 
 class MonitorCreate(MonitorBase):
@@ -55,6 +61,7 @@ class MonitorUpdate(BaseModel):
     timeout_seconds: int | None = Field(default=None, ge=1)
     is_active: bool | None = None
     expected_status_code: int | None = Field(default=None, ge=100, le=599)
+    webhook_url: str | None = Field(default=None, max_length=2048)
 
     @field_validator("url")
     @classmethod
@@ -65,6 +72,11 @@ class MonitorUpdate(BaseModel):
     @classmethod
     def validate_method(cls, value: str | None) -> str | None:
         return normalize_http_method(value) if value is not None else value
+
+    @field_validator("webhook_url")
+    @classmethod
+    def validate_webhook_url(cls, value: str | None) -> str | None:
+        return validate_monitor_url(value) if value is not None else value
 
 
 class MonitorResponse(MonitorBase):
@@ -98,6 +110,13 @@ class MonitorStatsResponse(BaseModel):
     failed_checks: int
     uptime_percentage: float
     average_response_time_ms: float | None
+
+
+class MonitorListResponse(BaseModel):
+    items: list[MonitorResponse]
+    page: int
+    page_size: int
+    total: int
 
 
 class MonitorCheckListResponse(BaseModel):
